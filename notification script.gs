@@ -1,10 +1,10 @@
-//V 0.2. current version works for multiple cells edited
+//V 0.2.2 current version works for multiple cells edited
 
-function sendEmail(subject, message) {
+function sendEmail(subject, message, list) {
   
-  //retrieves emails from EMAILS sheet, column B. stored in string, separated by commas
-  var emailRange = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("EMAILS").getRange("B1");
-  var emailAddress = emailRange.getValues();
+  //retrieves emails from Email Distro sheet. stored in string, separated by commas, starts on second row to avoid "Email Address" label at the top
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Email Distro");
+  var emailAddress = sheet.getRange(2,list,sheet.getLastRow()-1).getValues();
 
   //sends email with retrieved email addresses, the subject and message as passed by parameters, and from a noReply email address
   MailApp.sendEmail(emailAddress, subject, message, {noReply:true});
@@ -15,7 +15,8 @@ function billable(sheet, range, time, user) {
   
   //creates Array[][] of values for active range and its corrolating information 
   var rangeValues = range.getValues();
-  var info = sheet.getRange(range.getRow(), 3,range.getNumRows(),3).getValues();   //grabs info on row for that work order, starting with column C. Should be FQNID, NFID, then Internal WO ID
+  var info = sheet.getRange(range.getRow(), 4,range.getNumRows(),3).getValues();   //grabs info on row for that work order, starting with column C. Should be FQNID, NFID, then Internal WO ID 
+  //getRanges( starting row of edited cells, the column that starts info (FQNID), the number of rows your grabbing, the number of columns you need
 
   //variables  
   var milestone;
@@ -29,10 +30,10 @@ function billable(sheet, range, time, user) {
     
     //check if column is a milestone
     milestone = sheet.getRange(1, range.getColumn()+col).getValue();
-    if( (milestone == "MS-1  Ready for Invoicing") || (milestone == "MS-2  Ready for Invoicing") || (milestone == "MS-3  Ready for Invoicing")){
+    if( (milestone == "MS-1 Ready for Invoicing") || (milestone == "MS-2.a Ready for Invoicing") || (milestone == "MS-2 Ready for Invoicing") || (milestone == "MS-3 Ready for Invoicing") || (milestone == "MS-4 Ready for Invoicing")){
       
-      //abbreviate milestone
-      milestone = milestone.substring(0,4);
+      //abbreviate milestone. Cuts everything past first space
+      milestone = milestone.substring(0,milestone.indexOf(" "));
      
       //for every row in that column
       var row;
@@ -46,12 +47,14 @@ function billable(sheet, range, time, user) {
           wo = info[row][2];
           
           //sendEmail(subject, message)
-          sendEmail((wo+" at "+milestone+" is now BILLABLE, "+fqnid), (fqnid+" in "+wo+" at "+milestone+" was changed to BILLABLE "+"\n\nNFID: "+nfid+"\n\nTIME: "+time+"\nUSER: "+user));
+          sendEmail((wo+" at "+milestone+" is now BILLABLE, "+fqnid), (fqnid+" in "+wo+" at "+milestone+" was changed to BILLABLE "+"\n\nNFID: "+nfid+"\n\nTIME: "+time+"\nUSER: "+user),2);
         }
       }
     }
   }
 }
+
+//future functions go here
 
 function onEdit(e) {
   
