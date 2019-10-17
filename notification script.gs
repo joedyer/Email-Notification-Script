@@ -1,4 +1,4 @@
-//V 0.2.2 current version works for multiple cells edited
+//V 0.2.4 current version works for multiple cells edited 
 
 function sendEmail(subject, message, list) {
   
@@ -11,25 +11,29 @@ function sendEmail(subject, message, list) {
 }
 
 
-function billable(sheet, range, time, user) {
+function billable(sheet, rangeValues, time, user, rangeRow, rangeCol) {
   
-  //creates Array[][] of values for active range and its corrolating information 
-  var rangeValues = range.getValues();
-  var info = sheet.getRange(range.getRow(), 4,range.getNumRows(),3).getValues();   //grabs info on row for that work order, starting with column C. Should be FQNID, NFID, then Internal WO ID 
-  //getRanges( starting row of edited cells, the column that starts info (FQNID), the number of rows your grabbing, the number of columns you need
-
   //variables  
+  var numRows = rangeValues.length;
+  var numCols = rangeValues[0].length;
   var milestone;
   var fqnid;
   var nfid;
   var wo;
   
+  
+  //creates Array[][] of values for active range and its corrolating information 
+  var info = sheet.getRange(rangeRow, 4,numRows,3).getValues();   //grabs info on row for that work order, starting with column C. Should be FQNID, NFID, then Internal WO ID 
+  var headers = sheet.getRange(1, rangeCol, 1, numCols).getValues();
+  //getRanges( starting row of edited cells, the column that starts info (FQNID), the number of rows your grabbing, the number of columns you need
+
+  
   //for every column in the range
   var col;
-  for (col = 0; col < range.getNumColumns(); col  ++) {
+  for (col = 0; col < numCols; col  ++) {
     
-    //check if column is a milestone
-    milestone = sheet.getRange(1, range.getColumn()+col).getValue();
+    //check if column is a milestone. This shouldn't be a problem for now but I can make this so it only calls the sheet once
+    milestone = headers[0][col];
     if( (milestone == "MS-1 Ready for Invoicing") || (milestone == "MS-2.a Ready for Invoicing") || (milestone == "MS-2 Ready for Invoicing") || (milestone == "MS-3 Ready for Invoicing") || (milestone == "MS-4 Ready for Invoicing")){
       
       //abbreviate milestone. Cuts everything past first space
@@ -37,7 +41,7 @@ function billable(sheet, range, time, user) {
      
       //for every row in that column
       var row;
-      for (row = 0; row < range.getNumRows(); row++){
+      for (row = 0; row < numRows; row++){
         
         //check if cell is BILLABLE
         if(rangeValues[row][col] == "BILLABLE"){
@@ -60,17 +64,23 @@ function onEdit(e) {
   
   //variables
   var sheet = e.source.getActiveSheet();
-  var rangelist = sheet.getActiveRangeList().getRanges();
+  var range = sheet.getActiveRange();
+  var rangeValues = range.getValues();
   var time = new Date().toString();
   var user = e.user.getEmail();
   
-  //iterate through the rangelist
-  var i;
-  for(i = 0; i < rangelist.length; i++){
+  
+  //Any billable update will be in the invoice log sheet
+  if(sheet.getName() == "Invoice Log"){
     
-    //Check for Billable, if so, call method
-    if(rangelist[i].getValue() == "BILLABLE"){
-      billable(sheet,rangelist[i], time, user);
+    //updates should be rectangular, if not, not update for billable. iterate only through the top row to find billable
+    var x;
+    for(x = 0 ; x < rangeValues[0].length; x++) {
+      
+      //Check x for Billable, if so, call method
+      if(rangeValues[0][x] == "BILLABLE"){
+        billable(sheet,rangeValues, time, user, range.getRow(),range.getColumn());
+      }
     }
     
     //future functions get called here. Formate: If( [conditions] ) { functionname(parameters); }
