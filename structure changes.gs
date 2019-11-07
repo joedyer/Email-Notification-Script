@@ -1,4 +1,4 @@
-//Setters and on setup functions
+//This file contains all functions that would change the structure of a table or of the properties. It should contain set up for 1) properties and 2) the changetable
 
 function setColumnProperties(){
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Invoice Log");
@@ -8,22 +8,44 @@ function setColumnProperties(){
   properties.deleteAllProperties();
   properties.setProperty('Billable Column Number', '');
   properties.setProperty('Rejection Column Number', '');
+  
+  var lastCol = 0;
 
   for(var i = 0; i < headers.length; i++){
+    
     if(headers[i].slice(-19) == 'Ready for Invoicing'){
       //billable column
+      
       var temp = properties.getProperty('Billable Column Number');
       properties.setProperty('Billable Column Number', temp+(i+1)+',');
+      
+      if(i > lastCol){ lastCol = i+1;}
+      
     }
     else if(headers[i].slice(-22) == 'Invoice Rejection Date'){
       //rejection column
+      
       var temp = properties.getProperty('Rejection Column Number');
       properties.setProperty('Rejection Column Number', temp+(i+1)+',');
+      
+      if(i > lastCol){ lastCol = i;}
+      
     }
   }
+  
+  //trim the columns and set last column
+  properties.setProperty('Last Column', lastCol+1);
+  
+  var temp = properties.getProperty('Billable Column Number');
+  properties.setProperty('Billable Column Number', temp.slice(0,-1));
+  
+  temp = properties.getProperty('Rejection Column Number');
+  properties.setProperty('Rejection Column Number', temp.slice(0,-1));
+  
 }
 
 function setChangeTable(){
+  
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var invoiceLog = ss.getSheetByName("Invoice Log");
   var changetable = ss.getSheetByName("changetable");
@@ -47,21 +69,35 @@ function setChangeTable(){
   var valueArr = [];
   
   var billColumns = prop.getProperty("Billable Column Number").split(',')
-  billColumns.pop();
   var rejectionColumns = prop.getProperty("Rejection Column Number").split(',')
-  rejectionColumns.pop();
-  Logger.log(billColumns);
   
   for(var row = 0; row < invoiceData.length; row++){
     valueArr.push([]);   
     for(var r = 0; r < rejectionColumns.length; r++){
-      valueArr[row].push(invoiceData[row][rejectionColumns[r]],'','');
+      if(row == 0){
+        valueArr[row].push(invoiceData[row][rejectionColumns[r]-1],'User','Time');
+      }else{
+        valueArr[row].push(invoiceData[row][rejectionColumns[r]-1],'',''); 
+      }
     }
     for(var b = 0; b < billColumns.length; b++){
-      Logger.log(billColumns[b]);
-      valueArr[row].push(invoiceData[row][billColumns[b]],'','');
+     if(row == 0){
+        valueArr[row].push(invoiceData[row][billColumns[b]-1],'User','Time');
+      }else{
+        valueArr[row].push(invoiceData[row][billColumns[b]-1],'',''); 
+      }
     }
   }
   
   changetable.getRange(1, 5, valueArr.length, valueArr[0].length).setValues(valueArr);
+}
+
+function addRowToChangeTable(){
+  
+  var range = SpreadsheetApp.getActive().getActiveRange();
+  
+  if(range.getSheet().getName() == 'Invoice Log'){
+    SpreadsheetApp.getActive().getSheetByName('changetable').insertRowBefore(range.getRow());
+  }
+  
 }

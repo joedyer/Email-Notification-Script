@@ -1,70 +1,132 @@
-// v7
+// v7.1
+// Updates: Better organization, fewer service calls, can handle the addition of new FQNIDs
+// Known restrictions: Cannot handle addition of a milestone. Adding and deleting many rows is hit or miss. Current fix is a full reset at 3 AM everyday to ensure quality. 
 
 
 //Triggered Functions
 function edit(e){
-  
   var sheet = e.source.getActiveSheet();
   var range = e.range;
   var user = e.user;
   var time = new Date();
   
-  if(sheet.getName() == "Invoice Log"){
+ 
+  if(editFilter(sheet, range)){
     var position = getChangeTablePosition(range.getColumn(), range.getLastColumn());
     if(position != null){
+      var invoiceValues = sheet.getRange(range.getRow(), position[1], range.getNumRows()).getValues();
+      var changeLogRange = SpreadsheetApp.getActive().getSheetByName('changetable').getRange(range.getRow(), position[0], range.getNumRows(), 3);
+      var changeValues = changeLogRange.getValues();
+      var changeFlag = false;
+
+      for(var i = 0; i < invoiceValues.length; i++){
+        if(invoiceValues[i][0] != changeValues[i][0]){
+          changeValues[i][0] = invoiceValues[i][0];
+          changeValues[i][1] = user;
+          changeValues[i][2] = time;
+          changeFlag = true;
+        }
+      }
       
-    
+      if(changeFlag){
+        changeLogRange.setValues(changeValues);
+      }
     }
   } 
 }
 
-function clearChangeTable(e){
+function editFilter(sheet, range){
+  
+  var prop = PropertiesService.getScriptProperties();
+  
+  if(sheet.getName() != "Invoice Log"){
+    //must be an edit in invoice log
+    return false;
+  }
+  else if(range.getColumn() <= 7 && range.getLastColumn() >= 4){
+    //edit is to info and just needs copying over
+    updateChangeTableInfo(range);
+    return false;
+  }
+  else if(range.getColumn() > prop.getProperty('Last Column')){
+    //edit is outside of range that would affect billable or rejection
+    return false;
+  }
+  else if(range.getBackground() == '#f4cccc'){
+    //background is changed light red, so its a cancelled FQNID
+    return false;
+  }
+  else{
+    return true;
+  }
+}
+
+function clearChangeTable(){
   
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("changetable");
-  var sheetVals = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
+  var sheetRange = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn());
+  var sheetVals = sheetRange.getValues();
+  var toMailArr = [];
   
   for(var col = 4; col < sheetVals[0].length; col +=3){
-    var arr = [];
+    //col starts at rejection at ms 1 then increments by 3 to get to next column
+    //each column gets an array. If that array isn't empty by the end then headers are unshifted into it and it gets put in the toMailArr (to mail out array) 
+    var colArr = [];
     for(var row = 3; row < sheetVals.length; row++){
-      if(sheetVals[row][col] != ''){
-        if(sheetVals[row][col+1] != ''){
-          arr.push([sheetVals[row][0], sheetVals[row][1], sheetVals[row][2], sheetVals[row][3], sheetVals[row][col+1], sheetVals[row][col+2]]);
-        }
+      //row starts below headers and increments by 1
+      if(sheetVals[row][col+1] != ''){
+        //check for change with user columns
+        colArr.push([sheetVals[row][0], sheetVals[row][1], sheetVals[row][2], sheetVals[row][3], sheetVals[row][col+1], sheetVals[row][col+2]]);
+        sheetVals[row][col+1] = "";
+        sheetVals[row][col+2] = "";
       }
     }
     
-    if(arr.length > 0){
-      var headArr = sheetVals[0][col].split(" ");
-      var ms = headArr[0];
-      
-      if(headArr[1] == 'Ready'){
-        sendEmail(arr, "ATL, "+arr.length+" FQNID(s) are now Billable at "+ms, ms, "BILLABLE");
-      }else{
-         sendEmail(arr, "ATL, "+arr.length+" FQNID(s) were rejected at "+ms, ms, "REJECTION");
-      }
+    if(colArr.length > 0){
+      colArr.unshift(sheetVals[0][col]);             //unshift header
+      toMailArr.push(colArr);                        //push column array into To mail out Array
     }
   }
- 
-  setChangeTable();
+  
+  sheetRange.setValues(sheetVals);
+  
+  for(var i = 0; i < toMailArr.length; i++){
+    sendEmail(toMailArr[i]);
+  }
+  
 }
 
-function sendEmail(arr, subject, milestone, name){
+function sendEmail(arr){
+  var name = '';
+  var subject = '';
+  var header = arr.shift();
+  
+  var ms = header.slice(0,header.indexOf(' '));
+  header = header.slice(header.indexOf(' ')+1);
+  
+  if(header == 'Invoice Rejection Date'){
+    subject = 'GRNB, '+arr.length+' FQNID(s) were rejected at '+ms;
+    name = 'REJECTION';
+  }else if(header == 'Ready for Invoicing'){
+    subject = 'GRNB, '+arr.length+' FQNID(s) are now billable at '+ms;
+    name = 'BILLABLE';
+  }
   
   var tmpl = HtmlService.createTemplateFromFile('Email Template.html');
   tmpl.arr = arr;
   var body = tmpl.evaluate().getContent();
-  
-  
+   
   MailApp.sendEmail({
-    to: getRecipient(name, milestone),
+    to: getRecipient(name, ms),
+    name: name,
     subject: subject,
-    htmlbody: body
+    htmlBody: body
   });
 }
 
 function getRecipient(name, milestone){
   
-  var recipient = "DG-LCS-VZOF-ATL-"+name;
+  var recipient = "DG-LCS-VZOF-GRNB-"+name;
   
   //for rejections, which MS
   if(name == "REJECTION"){
@@ -81,30 +143,36 @@ function getRecipient(name, milestone){
 }
 
 function getChangeTablePosition(start, end){
+  //returns an array with the position of column in the changetable as the first element and the position of the column in the invoice log as the second element. IE. [26, 59]
   
   var prop = PropertiesService.getScriptProperties();
   var billCols = prop.getProperty('Billable Column Number').split(',');
-  billCols.pop();
   var rejCols = prop.getProperty('Rejection Column Number').split(',');
-  rejCols.pop();
+  
   
   for(var i = 0; i < rejCols.length; i++){
     if(start <= rejCols[i] && end >= rejCols[i]){
-      return ((i*3)+4);
+      return [((i*3)+5), rejCols[i]];
+      break;
     }
   }
   
-  for(var x = 0; x < billCols.length; x++){
-    if(start > billCols[x]){
-      i++;
-      if(x == billCols.length-1){
-        return null;
-      }
+  if(start <= billCols[0]){
+    return [((i*3)+5), billCols[0]];
+  }
+  i++;
+  
+  for(var j = 1; j < billCols.length; i++, j++){
+    if(start > billCols[j-1] && start <= billCols[j]){
+      return [((i*3)+5), billCols[j]];
+      break;
     }
   }
-  return ((i*3)+4);
+  
+  return null;
 }
 
-function test(){
-  Logger.log(getChangeTablePosition(102, 105));
+function updateChangeTableInfo(range){
+  SpreadsheetApp.getActive().getSheetByName('changetable').getRange(range.getRow(), range.getColumn()-3, range.getNumRows(), range.getNumColumns()).setValues(range.getValues());
+
 }
