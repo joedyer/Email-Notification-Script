@@ -1,0 +1,19 @@
+<table style='border: 1px solid black;'>
+   <tr>
+       <th>FQNID</th>
+       <th>NFID</th>
+       <th>Internal WO</th>
+       <th>GDB WO</th>
+       <th>Milestone</th>
+       <th>User</th>
+       <th>Time</th>
+   </tr>
+   
+   <? for(var i = 0; i < arr.length; i ++) {?>
+      <tr>
+      <? for(var j = 0; j < arr[0].length; j++) {?>
+         <td><?= arr[i][j]?></td>
+      <?}?>
+      </tr>
+   <?}?>
+</table>
