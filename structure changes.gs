@@ -6,14 +6,20 @@ function setColumnProperties(){
   
   var properties = PropertiesService.getScriptProperties();
   properties.deleteAllProperties();
+  properties.setProperty('Info', '');
   properties.setProperty('Billable Column Number', '');
   properties.setProperty('Rejection Column Number', '');
   
   var lastCol = 0;
 
   for(var i = 0; i < headers.length; i++){
-    
-    if(headers[i].slice(-19) == 'Ready for Invoicing'){
+    if(headers[i] == 'FQNID'||headers[i] == 'Site NFID'||headers[i] == 'Internal Work Order ID'||headers[i] == 'Customer GDB Work Order ID'){
+      
+      var temp = properties.getProperty('Info');
+      properties.setProperty('Info', temp+(i+1)+',');
+      
+    }
+    else if(headers[i].slice(-19) == 'Ready for Invoicing'){
       //billable column
       
       var temp = properties.getProperty('Billable Column Number');
@@ -36,7 +42,10 @@ function setColumnProperties(){
   //trim the columns and set last column
   properties.setProperty('Last Column', lastCol+1);
   
-  var temp = properties.getProperty('Billable Column Number');
+  var temp = properties.getProperty('Info');
+  properties.setProperty('Info', temp.slice(0,-1));
+  
+  temp = properties.getProperty('Billable Column Number');
   properties.setProperty('Billable Column Number', temp.slice(0,-1));
   
   temp = properties.getProperty('Rejection Column Number');
@@ -59,20 +68,19 @@ function setChangeTable(){
   
   changetable.clear();
   
-  //add in FQNID, NFID, Work Order ID, and GDB Work Order ID
-  var invoiceInfo = invoiceLog.getSheetValues(1, 4, invoiceLog.getLastRow(), 4);
-  changetable.getRange(1, 1, invoiceInfo.length, 4).setValues(invoiceInfo);
-  
-  //get the rest of the sheets info
   var invoiceData = invoiceLog.getSheetValues(1, 1, invoiceLog.getLastRow(), invoiceLog.getLastColumn());
   var prop = PropertiesService.getScriptProperties();
   var valueArr = [];
   
-  var billColumns = prop.getProperty("Billable Column Number").split(',')
-  var rejectionColumns = prop.getProperty("Rejection Column Number").split(',')
+  var infoColumns = prop.getProperty("Info").split(',');
+  var billColumns = prop.getProperty("Billable Column Number").split(',');
+  var rejectionColumns = prop.getProperty("Rejection Column Number").split(',');
   
   for(var row = 0; row < invoiceData.length; row++){
-    valueArr.push([]);   
+    valueArr.push([]); 
+    for(var i = 0; i < infoColumns.length; i++){
+      valueArr[row].push(invoiceData[row][infoColumns[i]-1]);
+    }
     for(var r = 0; r < rejectionColumns.length; r++){
       if(row == 0){
         valueArr[row].push(invoiceData[row][rejectionColumns[r]-1],'User','Time');
@@ -89,7 +97,7 @@ function setChangeTable(){
     }
   }
   
-  changetable.getRange(1, 5, valueArr.length, valueArr[0].length).setValues(valueArr);
+  changetable.getRange(1, 1, valueArr.length, valueArr[0].length).setValues(valueArr);
 }
 
 function addRowToChangeTable(){
