@@ -1,6 +1,6 @@
 <body>
-   <table style='border: 1px solid black;'>
-      <tr>
+   <table style='border: 1px solid white; padding: 15px; border-collapse: collapse; width:100%;'>
+      <tr style='border: 1px solid white; padding: 15px; border-collapse: collapse;'>
          <th>FQNID</th>
          <th>NFID</th>
          <th>Internal WO</th>
@@ -9,11 +9,16 @@
          <th>Time</th>
       </tr>
       <? for(var i = 0; i < arr.length; i ++) {?>
-      <tr>
-         <? for(var j = 0; j < arr[0].length; j++) {?>
-         <td><?= arr[i][j]?></td>
+         <?if(i%2==0){?>
+         <tr style='border: 1px solid black; padding: 15px; border-collapse: collapse;' bgcolor="#e6e6f5">
+         <?}else{?>
+         <tr style='border: 1px solid black; padding: 15px; border-collapse: collapse;' bgcolor="#e9f5f5">
          <?}?>
-      </tr>
+         
+            <? for(var j = 0; j < arr[0].length; j++) {?>
+               <td style='border: 1px solid white; padding: 15px; border-collapse: collapse;'><?= arr[i][j]?></td>
+            <?}?>
+         </tr>
       <?}?>
    </table>
 </body>
