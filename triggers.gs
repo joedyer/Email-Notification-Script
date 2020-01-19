@@ -1,6 +1,6 @@
 //functions to 1) set up new triggers which should be an event based trigger and a time based trigger
 
-function setTriggers(ss){
+function setTriggers(){
   //set new triggers
   var ss = SpreadsheetApp.getActive();
   ScriptApp.newTrigger("changeEvent").forSpreadsheet(ss).onChange().create();
@@ -11,27 +11,23 @@ function setTriggers(ss){
 }
 
 function changeEvent(e){
- 
- //updates milestone columns
-  if(e.changeType == "INSERT_COLUMN" || e.changeType == "REMOVE_COLUMN"){
-    setColumnProperties()
-  }
-  else if(e.changeType == 'INSERT_ROW'){
-   
-    var range = SpreadsheetApp.getActive().getActiveRange();
-    
-    if(range.getSheet().getName() == 'Invoice Log'){
+
+  //updates milestone columns
+  if(e.changeType != 'OTHER' && range.getSheet().getName() == 'Invoice Log'){
+    if(e.changeType == "INSERT_COLUMN" || e.changeType == "REMOVE_COLUMN"){
+      setColumnProperties()
+    }
+    else if(e.changeType == 'INSERT_ROW'){
+      
+      var range = SpreadsheetApp.getActive().getActiveRange();
       SpreadsheetApp.getActive().getSheetByName('changetable').insertRowBefore(range.getRow());
     }
     
-  }else if(e.changeType == 'REMOVE_ROW'){
-  
-    var range = SpreadsheetApp.getActive().getActiveRange();
-    
-    if(range.getSheet().getName() == 'Invoice Log'){
+    else if(e.changeType == 'REMOVE_ROW'){
+      
+      var range = SpreadsheetApp.getActive().getActiveRange();
       SpreadsheetApp.getActive().getSheetByName('changetable').deleteRow(range.getRow());
     }
-    
   }
 }
 
