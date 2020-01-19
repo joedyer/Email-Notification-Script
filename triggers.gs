@@ -11,22 +11,21 @@ function setTriggers(){
 }
 
 function changeEvent(e){
-
+  
   //updates milestone columns
-  if(e.changeType != 'OTHER' && range.getSheet().getName() == 'Invoice Log'){
-    if(e.changeType == "INSERT_COLUMN" || e.changeType == "REMOVE_COLUMN"){
-      setColumnProperties()
-    }
-    else if(e.changeType == 'INSERT_ROW'){
+  if(e.changeType != 'OTHER'){
+    var range = SpreadsheetApp.getActive().getActiveRange();
+    if(range.getSheet().getName() == 'Invoice Log'){
+      if(e.changeType == "INSERT_COLUMN" || e.changeType == "REMOVE_COLUMN"){
+        setColumnProperties()
+      }
+      else if(e.changeType == 'INSERT_ROW'){
+        SpreadsheetApp.getActive().getSheetByName('changetable').insertRowBefore(range.getRow());
+      }
       
-      var range = SpreadsheetApp.getActive().getActiveRange();
-      SpreadsheetApp.getActive().getSheetByName('changetable').insertRowBefore(range.getRow());
-    }
-    
-    else if(e.changeType == 'REMOVE_ROW'){
-      
-      var range = SpreadsheetApp.getActive().getActiveRange();
-      SpreadsheetApp.getActive().getSheetByName('changetable').deleteRow(range.getRow());
+      else if(e.changeType == 'REMOVE_ROW'){
+        SpreadsheetApp.getActive().getSheetByName('changetable').deleteRow(range.getRow());
+      }
     }
   }
 }
